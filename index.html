@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
     <title>Painel de Gestão Operacional</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -30,15 +31,16 @@
     <div id="modal-login" class="fixed inset-0 bg-verdeEscuro bg-opacity-95 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full border border-cinzaBorda text-center">
             <div class="w-16 h-16 bg-verdeFundo text-verdeEscuro rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
             </div>
             <h2 class="text-2xl font-bold text-verdeEscuro mb-1">Acesso Restrito</h2>
             <p class="text-xs text-gray-500 mb-6">Digite a senha corporativa para acessar o painel de gestão.</p>
-            <form onsubmit="validarSenha(event)" class="space-y-4">
+            <form id="form-login" class="space-y-4" autocomplete="off">
                 <div>
-                    <input type="password" id="input-senha" placeholder="Sua senha..." class="w-full px-4 py-3 border border-cinzaBorda rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-verdeDestaque">
+                    <label for="input-senha" class="sr-only">Senha</label>
+                    <input type="password" id="input-senha" placeholder="Sua senha..." autocomplete="current-password" class="w-full px-4 py-3 border border-cinzaBorda rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-verdeDestaque">
                 </div>
-                <p id="erro-senha" class="text-xs text-red-600 font-semibold hidden">Senha incorreta. Tente novamente.</p>
+                <p id="erro-senha" role="alert" class="text-xs text-red-600 font-semibold hidden">Senha incorreta. Tente novamente.</p>
                 <button type="submit" class="w-full py-3 bg-verdeEscuro text-white text-sm font-semibold rounded-lg hover:bg-verdeClaro transition">Entrar no Painel</button>
             </form>
         </div>
@@ -53,14 +55,17 @@
                     <p class="text-verdeFundo text-xs mt-1">Análise de Anúncios, Estoques, Promoções e Modalidades Logísticas</p>
                 </div>
                 <div class="mt-4 md:mt-0 flex items-center space-x-3">
-                    <span id="status-conexao" class="bg-amber-500 text-white text-xs px-3 py-1 rounded-full font-medium">Sincronizando...</span>
-                    <button onclick="carregarDados()" class="bg-verdeDestaque hover:bg-opacity-90 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition">Atualizar</button>
-                    <button onclick="sair()" class="bg-red-700 hover:bg-red-800 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition">Sair</button>
+                    <span id="status-conexao" class="bg-amber-500 text-white text-xs px-3 py-1 rounded-full font-medium" aria-live="polite">Sincronizando...</span>
+                    <button id="btn-atualizar" type="button" class="bg-verdeDestaque hover:bg-opacity-90 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition disabled:opacity-60">Atualizar</button>
+                    <button id="btn-sair" type="button" class="bg-red-700 hover:bg-red-800 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition">Sair</button>
                 </div>
             </div>
         </header>
 
         <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full space-y-6">
+            <!-- AVISO DE ERRO -->
+            <div id="aviso-erro" role="alert" class="hidden bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-4"></div>
+
             <!-- CARDS KPI -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-cinzaBorda flex items-center justify-between">
@@ -68,28 +73,28 @@
                         <p class="text-xs font-semibold text-gray-500 uppercase">Total de Anúncios</p>
                         <h3 id="kpi-total" class="text-2xl font-bold text-verdeEscuro mt-1">0</h3>
                     </div>
-                    <div class="p-3 bg-verdeFundo rounded-lg text-verdeEscuro">📦</div>
+                    <div class="p-3 bg-verdeFundo rounded-lg text-verdeEscuro" aria-hidden="true">📦</div>
                 </div>
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-cinzaBorda flex items-center justify-between">
                     <div>
                         <p class="text-xs font-semibold text-red-600 uppercase">Sem Saldo (Atenção)</p>
                         <h3 id="kpi-atencao" class="text-2xl font-bold text-red-600 mt-1">0</h3>
                     </div>
-                    <div class="p-3 bg-red-100 rounded-lg text-red-600">🚨</div>
+                    <div class="p-3 bg-red-100 rounded-lg text-red-600" aria-hidden="true">🚨</div>
                 </div>
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-cinzaBorda flex items-center justify-between">
                     <div>
                         <p class="text-xs font-semibold text-amber-600 uppercase">Oportunidades</p>
                         <h3 id="kpi-oportunidades" class="text-2xl font-bold text-amber-600 mt-1">0</h3>
                     </div>
-                    <div class="p-3 bg-amber-100 rounded-lg text-amber-600">💡</div>
+                    <div class="p-3 bg-amber-100 rounded-lg text-amber-600" aria-hidden="true">💡</div>
                 </div>
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-cinzaBorda flex items-center justify-between">
                     <div>
                         <p class="text-xs font-semibold text-verdeDestaque uppercase">Em Promoção</p>
                         <h3 id="kpi-promocao" class="text-2xl font-bold text-verdeEscuro mt-1">0</h3>
                     </div>
-                    <div class="p-3 bg-verdeFundo rounded-lg text-verdeDestaque">🏷️</div>
+                    <div class="p-3 bg-verdeFundo rounded-lg text-verdeDestaque" aria-hidden="true">🏷️</div>
                 </div>
             </div>
 
@@ -100,23 +105,23 @@
                 </h2>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">SKU</label>
+                        <label for="filtro-sku" class="block text-xs font-semibold text-gray-500 uppercase mb-1">SKU</label>
                         <input type="text" id="filtro-sku" placeholder="Buscar SKU..." class="w-full px-3 py-2 border border-cinzaBorda rounded-lg text-sm focus:ring-2 focus:ring-verdeDestaque focus:outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Título do Produto</label>
+                        <label for="filtro-titulo" class="block text-xs font-semibold text-gray-500 uppercase mb-1">Título do Produto</label>
                         <input type="text" id="filtro-titulo" placeholder="Buscar por título..." class="w-full px-3 py-2 border border-cinzaBorda rounded-lg text-sm focus:ring-2 focus:ring-verdeDestaque focus:outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Modalidade Logística</label>
+                        <label for="filtro-logistica" class="block text-xs font-semibold text-gray-500 uppercase mb-1">Modalidade Logística</label>
                         <select id="filtro-logistica" class="w-full px-3 py-2 border border-cinzaBorda rounded-lg text-sm focus:ring-2 focus:ring-verdeDestaque focus:outline-none bg-white">
                             <option value="">Todas</option>
-                            <option value="mercado envios">Mercado Envios</option>
+                            <option value="envios">Mercado Envios</option>
                             <option value="full">Full</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Situação da Promoção</label>
+                        <label for="filtro-promocao" class="block text-xs font-semibold text-gray-500 uppercase mb-1">Situação da Promoção</label>
                         <select id="filtro-promocao" class="w-full px-3 py-2 border border-cinzaBorda rounded-lg text-sm focus:ring-2 focus:ring-verdeDestaque focus:outline-none bg-white">
                             <option value="">Todas</option>
                             <option value="com">Com Promoção</option>
@@ -126,18 +131,18 @@
                     </div>
                 </div>
                 <div class="mt-4 flex justify-end space-x-2">
-                    <button onclick="limparFiltros()" class="px-4 py-2 border border-cinzaBorda text-gray-600 text-xs font-semibold rounded-lg hover:bg-gray-100 transition">Limpar Filtros</button>
-                    <button onclick="aplicarFiltros()" class="px-4 py-2 bg-verdeEscuro text-white text-xs font-semibold rounded-lg hover:bg-verdeClaro transition">Aplicar Filtros</button>
+                    <button id="btn-limpar" type="button" class="px-4 py-2 border border-cinzaBorda text-gray-600 text-xs font-semibold rounded-lg hover:bg-gray-100 transition">Limpar Filtros</button>
+                    <button id="btn-aplicar" type="button" class="px-4 py-2 bg-verdeEscuro text-white text-xs font-semibold rounded-lg hover:bg-verdeClaro transition">Aplicar Filtros</button>
                 </div>
             </div>
 
             <!-- NAVEGAÇÃO / ABAS -->
-            <div class="border-b border-cinzaBorda flex space-x-4 overflow-x-auto pb-1">
-                <button onclick="mudarAba('atencao')" id="tab-atencao" class="tab-btn py-2 px-3 border-b-2 border-verdeEscuro text-verdeEscuro font-semibold text-sm whitespace-nowrap">🚨 Pontos de Atenção (Sem Saldo)</button>
-                <button onclick="mudarAba('oportunidades')" id="tab-oportunidades" class="tab-btn py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-verdeEscuro font-medium text-sm whitespace-nowrap">💡 Oportunidades Comerciais</button>
-                <button onclick="mudarAba('promocoes')" id="tab-promocoes" class="tab-btn py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-verdeEscuro font-medium text-sm whitespace-nowrap">🏷️ Produtos em Promoção</button>
-                <button onclick="mudarAba('estoque')" id="tab-estoque" class="tab-btn py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-verdeEscuro font-medium text-sm whitespace-nowrap">📦 Estoque (Envios vs Full)</button>
-                <button onclick="mudarAba('todos')" id="tab-todos" class="tab-btn py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-verdeEscuro font-medium text-sm whitespace-nowrap">📋 Todos os Anúncios</button>
+            <div class="border-b border-cinzaBorda flex space-x-4 overflow-x-auto pb-1" role="tablist">
+                <button type="button" role="tab" data-aba="atencao" id="tab-atencao" class="tab-btn py-2 px-3 border-b-2 border-verdeEscuro text-verdeEscuro font-semibold text-sm whitespace-nowrap">🚨 Pontos de Atenção (Sem Saldo) <span id="cnt-atencao" class="ml-1 text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">0</span></button>
+                <button type="button" role="tab" data-aba="oportunidades" id="tab-oportunidades" class="tab-btn py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-verdeEscuro font-medium text-sm whitespace-nowrap">💡 Oportunidades Comerciais <span id="cnt-oportunidades" class="ml-1 text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">0</span></button>
+                <button type="button" role="tab" data-aba="promocoes" id="tab-promocoes" class="tab-btn py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-verdeEscuro font-medium text-sm whitespace-nowrap">🏷️ Produtos em Promoção <span id="cnt-promocoes" class="ml-1 text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">0</span></button>
+                <button type="button" role="tab" data-aba="estoque" id="tab-estoque" class="tab-btn py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-verdeEscuro font-medium text-sm whitespace-nowrap">📦 Estoque (Envios vs Full) <span id="cnt-estoque" class="ml-1 text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">0</span></button>
+                <button type="button" role="tab" data-aba="todos" id="tab-todos" class="tab-btn py-2 px-3 border-b-2 border-transparent text-gray-500 hover:text-verdeEscuro font-medium text-sm whitespace-nowrap">📋 Todos os Anúncios <span id="cnt-todos" class="ml-1 text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">0</span></button>
             </div>
 
             <!-- SEÇÕES TABELAS -->
@@ -145,7 +150,7 @@
                 <!-- Pontos de Atenção -->
                 <div id="secao-atencao" class="secao-conteudo p-5">
                     <h3 class="text-md font-bold text-verdeEscuro mb-1">Anúncios Promocionados sem Saldo Disponível</h3>
-                    <p class="text-xs text-gray-500 mb-4">Itens em campanhas promocionais que necessitam de atenção imediata devido à ausência de orçamento/saldo.</p>
+                    <p class="text-xs text-gray-500 mb-4">Itens com promoção ativa e sem saldo/estoque disponível, que necessitam de atenção imediata.</p>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
@@ -166,7 +171,7 @@
                 <!-- Oportunidades -->
                 <div id="secao-oportunidades" class="secao-conteudo p-5 hidden">
                     <h3 class="text-md font-bold text-verdeEscuro mb-1">Oportunidades Comerciais</h3>
-                    <p class="text-xs text-gray-500 mb-4">Anúncios com estoque disponível, mas sem nenhuma promoção ativa configurada.</p>
+                    <p class="text-xs text-gray-500 mb-4">Anúncios com estoque disponível, mas sem nenhuma promoção ativa.</p>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
@@ -206,7 +211,8 @@
 
                 <!-- Estoque -->
                 <div id="secao-estoque" class="secao-conteudo p-5 hidden">
-                    <h3 class="text-md font-bold text-verdeEscuro mb-1">Estoque por Modalidade Logística</h3>
+                    <h3 class="text-md font-bold text-verdeEscuro mb-1">Estoque Disponível por Modalidade Logística</h3>
+                    <p class="text-xs text-gray-500">Apenas anúncios com estoque maior que zero, separados entre Mercado Envios e Full.</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
                         <div class="bg-cinzaFundo p-4 rounded-lg border border-cinzaBorda">
                             <span class="text-xs text-gray-500 font-bold uppercase">📦 Mercado Envios</span>
@@ -219,18 +225,37 @@
                             <p id="qtd-produtos-full" class="text-xs text-gray-500">0 anúncios</p>
                         </div>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-cinzaFundo text-xs uppercase text-gray-600 border-b border-cinzaBorda">
-                                    <th class="p-3">SKU</th>
-                                    <th class="p-3">Título</th>
-                                    <th class="p-3">Logística</th>
-                                    <th class="p-3">Estoque Disponível</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-estoque" class="divide-y divide-cinzaBorda text-sm"></tbody>
-                        </table>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-sm font-bold text-verdeClaro mb-2">📦 Mercado Envios</h4>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-cinzaFundo text-xs uppercase text-gray-600 border-b border-cinzaBorda">
+                                            <th class="p-3">SKU</th>
+                                            <th class="p-3">Título</th>
+                                            <th class="p-3">Estoque</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-estoque-envios" class="divide-y divide-cinzaBorda text-sm"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-verdeEscuro mb-2">🚀 Full</h4>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-cinzaFundo text-xs uppercase text-gray-600 border-b border-cinzaBorda">
+                                            <th class="p-3">SKU</th>
+                                            <th class="p-3">Título</th>
+                                            <th class="p-3">Estoque</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-estoque-full" class="divide-y divide-cinzaBorda text-sm"></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -256,205 +281,402 @@
                     </div>
                 </div>
             </div>
+
+            <p id="rodape-info" class="text-xs text-gray-400 text-center"></p>
         </main>
     </div>
 
     <script>
-        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0nzI9DDtfpKwNkTeaq9MzkkWJN8OqmILsz86aIPMkXMjEe6IwBuKhVzs_i6tCZt3Y7LsSx-6WzuQe/pub?gid=0&single=true&output=csv";
-        const SENHA_CORRETA = "varejo";
-        let dadosGlobais = [];
+        'use strict';
 
-        function validarSenha(e) {
+        /* ============================================================
+         * CONFIGURAÇÃO
+         * ============================================================
+         * SENHA_HASH = SHA-256 da senha do painel (a senha continua a
+         * mesma; só deixou de aparecer em texto puro no código).
+         * Para trocar: gere o SHA-256 da nova senha e substitua abaixo
+         * (ex.: no terminal -> printf 'novasenha' | sha256sum).
+         * Obs.: proteção feita no navegador serve para restringir o
+         * acesso casual; não substitui autenticação de servidor.
+         * ============================================================ */
+        const CONFIG = {
+            CSV_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0nzI9DDtfpKwNkTeaq9MzkkWJN8OqmILsz86aIPMkXMjEe6IwBuKhVzs_i6tCZt3Y7LsSx-6WzuQe/pub?gid=0&single=true&output=csv",
+            SENHA_HASH: "340d616fbe704a81fcc6031f8e148ea2e4390a610f6341e3ade1ffea72bb25bc",
+            MAX_LINHAS: 500,          // limite de linhas renderizadas por tabela (desempenho)
+            DEBOUNCE_MS: 200
+        };
+
+        let dadosGlobais = [];
+        let dadosFiltrados = [];
+        let carregando = false;
+
+        const $ = (id) => document.getElementById(id);
+        const fmtMoeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+        const fmtInt = new Intl.NumberFormat('pt-BR');
+        const fmtPct = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+        /* ---------- Utilitários ---------- */
+
+        // Escapa HTML para evitar injeção de código vindo da planilha
+        function esc(valor) {
+            return String(valor ?? '').replace(/[&<>"']/g, (c) => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        // Minúsculas, sem acentos, só letras/números/espaços
+        function norm(texto) {
+            return String(texto ?? '')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, ' ')
+                .trim();
+        }
+
+        // Converte "R$ 1.234,56", "1234.56", "1,234.56", "12,5" etc. em número
+        function parseNum(val) {
+            if (val === null || val === undefined) return 0;
+            let s = String(val).replace(/[^\d.,-]/g, '');
+            if (!s || s === '-') return 0;
+            const temVirgula = s.includes(',');
+            const temPonto = s.includes('.');
+            if (temVirgula && temPonto) {
+                // o último separador é o decimal
+                if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g, '').replace(',', '.');
+                else s = s.replace(/,/g, '');
+            } else if (temVirgula) {
+                s = s.replace(/\./g, '').replace(',', '.');
+            } else if (temPonto && /^-?\d{1,3}(\.\d{3})+$/.test(s)) {
+                s = s.replace(/\./g, ''); // 1.234 ou 1.234.567 -> milhar
+            }
+            const n = parseFloat(s);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function moeda(v) { return v > 0 ? fmtMoeda.format(v) : '—'; }
+
+        async function sha256(texto) {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
+            return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function storageGet(chave) {
+            try { return sessionStorage.getItem(chave); } catch (e) { return null; }
+        }
+        function storageSet(chave, valor) {
+            try { valor === null ? sessionStorage.removeItem(chave) : sessionStorage.setItem(chave, valor); } catch (e) { /* ignora */ }
+        }
+
+        /* ---------- Autenticação ---------- */
+
+        function mostrarPainel() {
+            $('modal-login').classList.add('hidden');
+            const painel = $('conteudo-painel');
+            painel.classList.remove('hidden');
+            painel.classList.add('flex');
+            carregarDados();
+        }
+
+        async function validarSenha(e) {
             e.preventDefault();
-            const input = document.getElementById('input-senha').value;
-            if (input === SENHA_CORRETA) {
-                document.getElementById('modal-login').classList.add('hidden');
-                document.getElementById('conteudo-painel').classList.remove('hidden');
-                document.getElementById('conteudo-painel').classList.add('flex');
-                carregarDados();
+            const erro = $('erro-senha');
+            if (!window.crypto || !crypto.subtle) {
+                erro.textContent = 'Abra o painel por uma conexão segura (https) para validar a senha.';
+                erro.classList.remove('hidden');
+                return;
+            }
+            const hash = await sha256($('input-senha').value);
+            if (hash === CONFIG.SENHA_HASH) {
+                erro.classList.add('hidden');
+                storageSet('painel_auth', '1');
+                $('input-senha').value = '';
+                mostrarPainel();
             } else {
-                document.getElementById('erro-senha').classList.remove('hidden');
+                erro.textContent = 'Senha incorreta. Tente novamente.';
+                erro.classList.remove('hidden');
+                $('input-senha').select();
             }
         }
 
         function sair() {
-            document.getElementById('modal-login').classList.remove('hidden');
-            document.getElementById('conteudo-painel').classList.add('hidden');
-            document.getElementById('input-senha').value = '';
+            storageSet('painel_auth', null);
+            $('modal-login').classList.remove('hidden');
+            const painel = $('conteudo-painel');
+            painel.classList.add('hidden');
+            painel.classList.remove('flex');
+            $('input-senha').value = '';
+            $('erro-senha').classList.add('hidden');
+            $('input-senha').focus();
         }
 
-        function carregarDados() {
-            const statusEl = document.getElementById('status-conexao');
-            statusEl.textContent = "Carregando...";
-            statusEl.className = "bg-amber-500 text-white text-xs px-3 py-1 rounded-full font-medium";
+        /* ---------- Carga de dados ---------- */
 
-            Papa.parse(CSV_URL, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    processarDados(results.data);
-                    statusEl.textContent = "Dados Atualizados";
-                    statusEl.className = "bg-verdeDestaque text-white text-xs px-3 py-1 rounded-full font-medium";
-                },
-                error: function(err) {
-                    statusEl.textContent = "Erro ao carregar";
-                    statusEl.className = "bg-red-500 text-white text-xs px-3 py-1 rounded-full font-medium";
+        function setStatus(tipo, texto) {
+            const el = $('status-conexao');
+            const cores = { ok: 'bg-verdeDestaque', erro: 'bg-red-500', carregando: 'bg-amber-500' };
+            el.textContent = texto;
+            el.className = `${cores[tipo] || cores.carregando} text-white text-xs px-3 py-1 rounded-full font-medium`;
+        }
+
+        function mostrarErro(msg) {
+            const el = $('aviso-erro');
+            if (!msg) { el.classList.add('hidden'); el.textContent = ''; return; }
+            el.textContent = msg;
+            el.classList.remove('hidden');
+        }
+
+        async function carregarDados() {
+            if (carregando) return;
+            carregando = true;
+            $('btn-atualizar').disabled = true;
+            setStatus('carregando', 'Carregando...');
+            mostrarErro('');
+
+            try {
+                const sep = CONFIG.CSV_URL.includes('?') ? '&' : '?';
+                const resp = await fetch(`${CONFIG.CSV_URL}${sep}_=${Date.now()}`, { cache: 'no-store' });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const texto = await resp.text();
+
+                const resultado = Papa.parse(texto, {
+                    header: true,
+                    skipEmptyLines: 'greedy',
+                    transformHeader: (h) => String(h).trim()
+                });
+
+                if (!resultado.data || resultado.data.length === 0) {
+                    throw new Error('A planilha está vazia ou não pôde ser lida.');
                 }
-            });
+
+                processarDados(resultado.data);
+                const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                setStatus('ok', `Dados atualizados às ${hora}`);
+            } catch (err) {
+                console.error('Falha ao carregar a planilha:', err);
+                setStatus('erro', 'Erro ao carregar');
+                mostrarErro('Não foi possível carregar os dados da planilha. Verifique a publicação do CSV e sua conexão, e clique em "Atualizar".');
+            } finally {
+                carregando = false;
+                $('btn-atualizar').disabled = false;
+            }
         }
 
-        function parseNum(val) {
-            if (!val) return 0;
-            const clean = String(val).replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
-            return parseFloat(clean) || 0;
+        /* ---------- Mapeamento de colunas ---------- */
+
+        // Procura a coluna pela primeira expressão que casar (ordem = prioridade)
+        function acharColuna(colunas, padroes, usadas) {
+            for (const padrao of padroes) {
+                const achada = colunas.find((c) => !usadas.has(c) && padrao.test(norm(c)));
+                if (achada) { usadas.add(achada); return achada; }
+            }
+            return null;
         }
+
+        function mapearColunas(colunas) {
+            const usadas = new Set();
+            const m = {};
+            // Preços primeiro, para que "preço promocional" não seja confundido com a coluna de promoção
+            m.precoPromo = acharColuna(colunas, [/(preco|valor).*(promo\w*|por)\b/, /promo\w*.*(preco|valor)/], usadas);
+            m.precoOrig  = acharColuna(colunas, [/(preco|valor).*(original|de)\b/, /original/, /\b(preco|valor)\b/], usadas);
+            m.sku        = acharColuna(colunas, [/^sku$/, /\bsku\b/, /codigo|\bcod\b/, /^id$|\bid\b/], usadas);
+            m.titulo     = acharColuna(colunas, [/titulo/, /anuncio/, /produto|nome|descricao/], usadas);
+            m.estoque    = acharColuna(colunas, [/estoque/, /quantidade|\bqtd\b|\bqtde\b/, /disponivel/], usadas);
+            m.logistica  = acharColuna(colunas, [/logistic/, /modalidade/, /envio|fulfillment|\bfull\b/, /\btipo\b/], usadas);
+            m.saldo      = acharColuna(colunas, [/saldo/], usadas);
+            m.promocao   = acharColuna(colunas, [/(situacao|status).*promo|promo.*(situacao|status)/, /promo|campanha/, /situacao/, /status/], usadas);
+
+            // Se não achou por nome, usa as duas primeiras colunas livres como SKU e título
+            const livres = colunas.filter((c) => !usadas.has(c));
+            if (!m.sku && livres.length) { m.sku = livres.shift(); }
+            if (!m.titulo && livres.length) { m.titulo = livres.shift(); }
+            return m;
+        }
+
+        /* ---------- Regras de negócio ---------- */
+
+        function normalizarLogistica(valor) {
+            const t = norm(valor);
+            if (/\bfull\b|fulfillment|\bfbm\b/.test(t)) return 'full';
+            return 'envios'; // Mercado Envios (padrão, inclui coleta, flex, cross docking, etc.)
+        }
+
+        const NEGATIVO = /\b(nao|sem|inativ\w*|desativ\w*|encerrad\w*|expirad\w*|finalizad\w*|pausad\w*|cancelad\w*|nenhum\w*|false)\b/;
+        const POSITIVO = /\b(ativ\w*|sim|true|andamento|participando|promocionad\w*|vigente|com promocao|em promocao|campanha)\b/;
+
+        function detectarPromoAtiva(textoPromo, precoOrig, precoPromo) {
+            const t = norm(textoPromo);
+            const temDesconto = precoPromo > 0 && precoOrig > 0 && precoPromo < precoOrig;
+            if (t) {
+                if (NEGATIVO.test(t)) return false;
+                if (POSITIVO.test(t)) return true;
+            }
+            return temDesconto;
+        }
+
+        let colunasDetectadas = {};
 
         function processarDados(dados) {
-            if (!dados || dados.length === 0) return;
+            const colunas = Object.keys(dados[0] || {});
+            const m = mapearColunas(colunas);
+            colunasDetectadas = m;
 
-            // Mapeamento automático inteligente de colunas
-            const colunas = Object.keys(dados[0]);
-            const kSku = colunas.find(c => /sku|código|codigo|id/i.test(c)) || colunas[0];
-            const kTitulo = colunas.find(c => /titulo|título|anuncio|anúncio|produto|nome/i.test(c)) || colunas[1];
-            const kEstoque = colunas.find(c => /estoque|qtd|quantidade/i.test(c));
-            const kLogistica = colunas.find(c => /logistica|logística|modalidade|envio|tipo/i.test(c));
-            const kPromocao = colunas.find(c => /promocao|promoção|situacao|situação|status/i.test(c));
-            const kSaldo = colunas.find(c => /saldo|orcamento|orçamento/i.test(c));
-            const kPrecoOrig = colunas.find(c => /original|preco_de|preço_de|preco|preço/i.test(c));
-            const kPrecoPromo = colunas.find(c => /promocional|preco_por|preço_por/i.test(c));
+            const get = (item, col) => (col && item[col] != null ? String(item[col]).trim() : '');
 
-            // Ignorar células totalmente vazias / linhas sem SKU ou Título
-            dadosGlobais = dados.filter(item => {
-                const skuVal = item[kSku] ? String(item[kSku]).trim() : '';
-                const titVal = item[kTitulo] ? String(item[kTitulo]).trim() : '';
-                return skuVal !== '' || titVal !== '';
-            }).map((item, idx) => {
-                const sku = item[kSku] ? String(item[kSku]).trim() : `SKU-${idx}`;
-                const titulo = item[kTitulo] ? String(item[kTitulo]).trim() : `Produto ${idx}`;
-                const estoque = kEstoque ? parseNum(item[kEstoque]) : 0;
-                const logistica = kLogistica ? String(item[kLogistica]).toLowerCase().trim() : 'mercado envios';
-                const promocaoStr = kPromocao ? String(item[kPromocao]).trim() : '';
-                const promoLower = promocaoStr.toLowerCase();
-                const saldo = kSaldo ? parseNum(item[kSaldo]) : 1;
-                const precoOrig = kPrecoOrig ? parseNum(item[kPrecoOrig]) : 0;
-                const precoPromo = kPrecoPromo ? parseNum(item[kPrecoPromo]) : 0;
+            dadosGlobais = dados
+                .filter((item) => get(item, m.sku) !== '' || get(item, m.titulo) !== '')
+                .map((item) => {
+                    const sku = get(item, m.sku) || '—';
+                    const titulo = get(item, m.titulo) || '—';
+                    const estoque = Math.max(0, parseNum(get(item, m.estoque)));
+                    const logistica = normalizarLogistica(get(item, m.logistica));
+                    const promocaoStr = get(item, m.promocao);
+                    const precoOrig = parseNum(get(item, m.precoOrig));
+                    const precoPromo = parseNum(get(item, m.precoPromo));
+                    // "Saldo" = coluna de saldo, se existir; caso contrário, o próprio estoque
+                    const saldo = m.saldo ? parseNum(get(item, m.saldo)) : estoque;
 
-                const temPromoAtiva = promoLower.includes('ativa') || promoLower.includes('sim') || promoLower.includes('andamento') || promoLower.includes('participando') || (precoPromo > 0 && precoPromo < precoOrig);
-                const semSaldo = (promoLower.includes('promocionado') || temPromoAtiva) && (kSaldo ? saldo <= 0 : false);
-                const oportunidade = estoque > 0 && !temPromoAtiva;
+                    const temPromoAtiva = detectarPromoAtiva(promocaoStr, precoOrig, precoPromo);
+                    const semSaldo = temPromoAtiva && saldo <= 0;
+                    const oportunidade = estoque > 0 && !temPromoAtiva;
+                    const desconto = (precoOrig > 0 && precoPromo > 0 && precoPromo < precoOrig)
+                        ? (1 - precoPromo / precoOrig) * 100
+                        : null;
 
-                return {
-                    sku,
-                    titulo,
-                    estoque,
-                    logistica,
-                    promocao: promocaoStr || (temPromoAtiva ? 'Ativa' : 'Sem Promoção'),
-                    temPromoAtiva,
-                    semSaldo,
-                    oportunidade,
-                    precoOrig,
-                    precoPromo
-                };
-            });
+                    return {
+                        sku, titulo, estoque, logistica,
+                        promocao: promocaoStr || (temPromoAtiva ? 'Ativa' : 'Sem promoção'),
+                        temPromoAtiva, semSaldo, oportunidade,
+                        precoOrig, precoPromo, desconto
+                    };
+                });
 
-            atualizarDashboard(dadosGlobais);
+            aplicarFiltros();
+            renderRodape();
         }
 
-        function renderTabela(idElemento, lista, fnHtml) {
-            const tbody = document.getElementById(idElemento);
+        /* ---------- Renderização ---------- */
+
+        function renderRodape() {
+            const nomes = Object.entries(colunasDetectadas)
+                .map(([k, v]) => `${k}: ${v ? esc(v) : '—'}`).join(' · ');
+            $('rodape-info').innerHTML = `${fmtInt.format(dadosGlobais.length)} anúncios lidos da planilha · Colunas detectadas → ${nomes}`;
+        }
+
+        function renderTabela(idElemento, lista, fnHtml, colspan) {
+            const tbody = $(idElemento);
             if (lista.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-400">Nenhum registro encontrado.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="${colspan}" class="p-4 text-center text-gray-400">Nenhum registro encontrado.</td></tr>`;
                 return;
             }
-            tbody.innerHTML = lista.map(fnHtml).join('');
+            let html = lista.slice(0, CONFIG.MAX_LINHAS).map(fnHtml).join('');
+            if (lista.length > CONFIG.MAX_LINHAS) {
+                html += `<tr><td colspan="${colspan}" class="p-3 text-center text-xs text-gray-400">Exibindo ${fmtInt.format(CONFIG.MAX_LINHAS)} de ${fmtInt.format(lista.length)} registros. Use os filtros para refinar.</td></tr>`;
+            }
+            tbody.innerHTML = html;
+        }
+
+        function rotuloLogistica(l) { return l === 'full' ? 'Full' : 'Mercado Envios'; }
+
+        function badgeLogistica(l) {
+            const cls = l === 'full' ? 'bg-verdeEscuro text-white' : 'bg-verdeFundo text-verdeEscuro';
+            return `<span class="px-2 py-0.5 rounded text-xs ${cls}">${rotuloLogistica(l)}</span>`;
         }
 
         function atualizarDashboard(lista) {
-            document.getElementById('kpi-total').textContent = lista.length;
-            document.getElementById('kpi-atencao').textContent = lista.filter(i => i.semSaldo).length;
-            document.getElementById('kpi-oportunidades').textContent = lista.filter(i => i.oportunidade).length;
-            document.getElementById('kpi-promocao').textContent = lista.filter(i => i.temPromoAtiva).length;
+            const atencao = lista.filter((i) => i.semSaldo);
+            const oportunidades = lista.filter((i) => i.oportunidade).sort((a, b) => b.estoque - a.estoque);
+            const promocoes = lista.filter((i) => i.temPromoAtiva)
+                .sort((a, b) => (b.desconto ?? -1) - (a.desconto ?? -1));
+            const comEstoque = lista.filter((i) => i.estoque > 0);
+            const envios = comEstoque.filter((i) => i.logistica === 'envios').sort((a, b) => b.estoque - a.estoque);
+            const full = comEstoque.filter((i) => i.logistica === 'full').sort((a, b) => b.estoque - a.estoque);
 
-            renderTabela('tbody-atencao', lista.filter(i => i.semSaldo), i => `
+            // KPIs e contadores das abas
+            $('kpi-total').textContent = fmtInt.format(lista.length);
+            $('kpi-atencao').textContent = fmtInt.format(atencao.length);
+            $('kpi-oportunidades').textContent = fmtInt.format(oportunidades.length);
+            $('kpi-promocao').textContent = fmtInt.format(promocoes.length);
+            $('cnt-atencao').textContent = fmtInt.format(atencao.length);
+            $('cnt-oportunidades').textContent = fmtInt.format(oportunidades.length);
+            $('cnt-promocoes').textContent = fmtInt.format(promocoes.length);
+            $('cnt-estoque').textContent = fmtInt.format(comEstoque.length);
+            $('cnt-todos').textContent = fmtInt.format(lista.length);
+
+            // Pontos de atenção
+            renderTabela('tbody-atencao', atencao, (i) => `
                 <tr class="hover:bg-cinzaFundo">
-                    <td class="p-3 font-semibold text-verdeEscuro">${i.sku}</td>
-                    <td class="p-3">${i.titulo}</td>
-                    <td class="p-3 capitalize">${i.logistica}</td>
-                    <td class="p-3"><span class="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs font-semibold">${i.promocao}</span></td>
-                    <td class="p-3">${i.estoque} un.</td>
+                    <td class="p-3 font-semibold text-verdeEscuro">${esc(i.sku)}</td>
+                    <td class="p-3">${esc(i.titulo)}</td>
+                    <td class="p-3">${badgeLogistica(i.logistica)}</td>
+                    <td class="p-3"><span class="bg-red-100 text-red-600 px-2 py-0.5 rounded text-xs font-semibold">${esc(i.promocao)}</span></td>
+                    <td class="p-3">${fmtInt.format(i.estoque)} un.</td>
                     <td class="p-3 text-red-600 font-bold">Sem Saldo</td>
-                </tr>
-            `);
+                </tr>`, 6);
 
-            renderTabela('tbody-oportunidades', lista.filter(i => i.oportunidade), i => `
+            // Oportunidades
+            renderTabela('tbody-oportunidades', oportunidades, (i) => `
                 <tr class="hover:bg-cinzaFundo">
-                    <td class="p-3 font-semibold text-verdeEscuro">${i.sku}</td>
-                    <td class="p-3">${i.titulo}</td>
-                    <td class="p-3 capitalize">${i.logistica}</td>
-                    <td class="p-3 font-semibold text-verdeDestaque">${i.estoque} un.</td>
-                    <td class="p-3">R$ ${i.precoOrig.toFixed(2)}</td>
-                </tr>
-            `);
+                    <td class="p-3 font-semibold text-verdeEscuro">${esc(i.sku)}</td>
+                    <td class="p-3">${esc(i.titulo)}</td>
+                    <td class="p-3">${badgeLogistica(i.logistica)}</td>
+                    <td class="p-3 font-semibold text-verdeDestaque">${fmtInt.format(i.estoque)} un.</td>
+                    <td class="p-3">${moeda(i.precoOrig)}</td>
+                </tr>`, 5);
 
-            renderTabela('tbody-promocoes', lista.filter(i => i.temPromoAtiva || i.precoPromo > 0), i => {
-                let desc = i.precoOrig > 0 ? ((1 - (i.precoPromo / i.precoOrig)) * 100).toFixed(1) : 0;
-                if (desc < 0) desc = 0;
-                return `
-                    <tr class="hover:bg-cinzaFundo">
-                        <td class="p-3 font-semibold text-verdeEscuro">${i.sku}</td>
-                        <td class="p-3">${i.titulo}</td>
-                        <td class="p-3 line-through text-gray-400">R$ ${i.precoOrig.toFixed(2)}</td>
-                        <td class="p-3 font-bold text-verdeEscuro">R$ ${i.precoPromo.toFixed(2)}</td>
-                        <td class="p-3"><span class="bg-verdeFundo text-verdeEscuro px-2 py-0.5 rounded text-xs font-bold">-${desc}%</span></td>
-                        <td class="p-3">${i.promocao}</td>
-                    </tr>
-                `;
-            });
-
-            const envios = lista.filter(i => i.logistica.includes('envios') || i.logistica.includes('cross'));
-            const full = lista.filter(i => i.logistica.includes('full') || i.logistica.includes('fulfillment'));
-
-            document.getElementById('total-estoque-envios').textContent = `${envios.reduce((a, b) => a + b.estoque, 0).toLocaleString()} un.`;
-            document.getElementById('qtd-produtos-envios').textContent = `${envios.length} anúncios`;
-            document.getElementById('total-estoque-full').textContent = `${full.reduce((a, b) => a + b.estoque, 0).toLocaleString()} un.`;
-            document.getElementById('qtd-produtos-full').textContent = `${full.length} anúncios`;
-
-            renderTabela('tbody-estoque', lista, i => `
+            // Promoções
+            renderTabela('tbody-promocoes', promocoes, (i) => `
                 <tr class="hover:bg-cinzaFundo">
-                    <td class="p-3 font-semibold text-verdeEscuro">${i.sku}</td>
-                    <td class="p-3">${i.titulo}</td>
-                    <td class="p-3 capitalize"><span class="px-2 py-0.5 rounded text-xs ${i.logistica.includes('full') ? 'bg-verdeEscuro text-white' : 'bg-verdeFundo text-verdeEscuro'}">${i.logistica}</span></td>
-                    <td class="p-3 font-semibold">${i.estoque} un.</td>
-                </tr>
-            `);
+                    <td class="p-3 font-semibold text-verdeEscuro">${esc(i.sku)}</td>
+                    <td class="p-3">${esc(i.titulo)}</td>
+                    <td class="p-3 ${i.desconto !== null ? 'line-through text-gray-400' : ''}">${moeda(i.precoOrig)}</td>
+                    <td class="p-3 font-bold text-verdeEscuro">${moeda(i.precoPromo)}</td>
+                    <td class="p-3">${i.desconto !== null
+                        ? `<span class="bg-verdeFundo text-verdeEscuro px-2 py-0.5 rounded text-xs font-bold">-${fmtPct.format(i.desconto)}%</span>`
+                        : '<span class="text-gray-400">—</span>'}</td>
+                    <td class="p-3">${esc(i.promocao)}</td>
+                </tr>`, 6);
 
-            renderTabela('tbody-todos', lista, i => `
+            // Estoque disponível: Mercado Envios x Full
+            $('total-estoque-envios').textContent = `${fmtInt.format(envios.reduce((a, b) => a + b.estoque, 0))} un.`;
+            $('qtd-produtos-envios').textContent = `${fmtInt.format(envios.length)} anúncios`;
+            $('total-estoque-full').textContent = `${fmtInt.format(full.reduce((a, b) => a + b.estoque, 0))} un.`;
+            $('qtd-produtos-full').textContent = `${fmtInt.format(full.length)} anúncios`;
+
+            const linhaEstoque = (i) => `
                 <tr class="hover:bg-cinzaFundo">
-                    <td class="p-3 font-semibold text-verdeEscuro">${i.sku}</td>
-                    <td class="p-3">${i.titulo}</td>
-                    <td class="p-3 capitalize">${i.logistica}</td>
-                    <td class="p-3">${i.estoque} un.</td>
-                    <td class="p-3">R$ ${i.precoOrig.toFixed(2)}</td>
-                    <td class="p-3">R$ ${i.precoPromo.toFixed(2)}</td>
-                    <td class="p-3">${i.promocao}</td>
-                </tr>
-            `);
+                    <td class="p-3 font-semibold text-verdeEscuro">${esc(i.sku)}</td>
+                    <td class="p-3">${esc(i.titulo)}</td>
+                    <td class="p-3 font-semibold">${fmtInt.format(i.estoque)} un.</td>
+                </tr>`;
+            renderTabela('tbody-estoque-envios', envios, linhaEstoque, 3);
+            renderTabela('tbody-estoque-full', full, linhaEstoque, 3);
+
+            // Todos
+            renderTabela('tbody-todos', lista, (i) => `
+                <tr class="hover:bg-cinzaFundo">
+                    <td class="p-3 font-semibold text-verdeEscuro">${esc(i.sku)}</td>
+                    <td class="p-3">${esc(i.titulo)}</td>
+                    <td class="p-3">${badgeLogistica(i.logistica)}</td>
+                    <td class="p-3">${fmtInt.format(i.estoque)} un.</td>
+                    <td class="p-3">${moeda(i.precoOrig)}</td>
+                    <td class="p-3">${moeda(i.precoPromo)}</td>
+                    <td class="p-3">${esc(i.promocao)}</td>
+                </tr>`, 7);
         }
 
+        /* ---------- Filtros ---------- */
+
         function aplicarFiltros() {
-            if (!dadosGlobais) return;
+            const skuFiltro = norm($('filtro-sku').value);
+            const tituloFiltro = norm($('filtro-titulo').value);
+            const logisticaFiltro = $('filtro-logistica').value;
+            const promocaoFiltro = $('filtro-promocao').value;
 
-            const skuFiltro = document.getElementById('filtro-sku').value.toLowerCase().trim();
-            const tituloFiltro = document.getElementById('filtro-titulo').value.toLowerCase().trim();
-            const logisticaFiltro = document.getElementById('filtro-logistica').value.toLowerCase().trim();
-            const promocaoFiltro = document.getElementById('filtro-promocao').value.toLowerCase().trim();
+            dadosFiltrados = dadosGlobais.filter((i) => {
+                const matchSku = !skuFiltro || norm(i.sku).includes(skuFiltro);
+                const matchTitulo = !tituloFiltro || norm(i.titulo).includes(tituloFiltro);
+                const matchLogistica = !logisticaFiltro || i.logistica === logisticaFiltro;
 
-            const filtrados = dadosGlobais.filter(i => {
-                const matchSku = !skuFiltro || i.sku.toLowerCase().includes(skuFiltro);
-                const matchTitulo = !tituloFiltro || i.titulo.toLowerCase().includes(tituloFiltro);
-                const matchLogistica = !logisticaFiltro || i.logistica.includes(logisticaFiltro);
-                
                 let matchPromo = true;
                 if (promocaoFiltro === 'com') matchPromo = i.temPromoAtiva;
                 else if (promocaoFiltro === 'sem') matchPromo = !i.temPromoAtiva;
@@ -463,29 +685,60 @@
                 return matchSku && matchTitulo && matchLogistica && matchPromo;
             });
 
-            atualizarDashboard(filtrados);
+            atualizarDashboard(dadosFiltrados);
         }
 
         function limparFiltros() {
-            document.getElementById('filtro-sku').value = '';
-            document.getElementById('filtro-titulo').value = '';
-            document.getElementById('filtro-logistica').value = '';
-            document.getElementById('filtro-promocao').value = '';
-            atualizarDashboard(dadosGlobais);
+            ['filtro-sku', 'filtro-titulo', 'filtro-logistica', 'filtro-promocao'].forEach((id) => { $(id).value = ''; });
+            aplicarFiltros();
         }
+
+        /* ---------- Abas ---------- */
 
         function mudarAba(abaId) {
-            document.querySelectorAll('.secao-conteudo').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(el => {
+            document.querySelectorAll('.secao-conteudo').forEach((el) => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach((el) => {
                 el.classList.remove('border-verdeEscuro', 'text-verdeEscuro', 'font-semibold');
                 el.classList.add('border-transparent', 'text-gray-500', 'font-medium');
+                el.setAttribute('aria-selected', 'false');
             });
 
-            document.getElementById(`secao-${abaId}`).classList.remove('hidden');
-            const btnAtivo = document.getElementById(`tab-${abaId}`);
+            $(`secao-${abaId}`).classList.remove('hidden');
+            const btnAtivo = $(`tab-${abaId}`);
             btnAtivo.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
             btnAtivo.classList.add('border-verdeEscuro', 'text-verdeEscuro', 'font-semibold');
+            btnAtivo.setAttribute('aria-selected', 'true');
         }
+
+        /* ---------- Inicialização ---------- */
+
+        function debounce(fn, ms) {
+            let t;
+            return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            $('form-login').addEventListener('submit', validarSenha);
+            $('btn-sair').addEventListener('click', sair);
+            $('btn-atualizar').addEventListener('click', carregarDados);
+            $('btn-aplicar').addEventListener('click', aplicarFiltros);
+            $('btn-limpar').addEventListener('click', limparFiltros);
+
+            // Filtros em tempo real
+            const aplicarComAtraso = debounce(aplicarFiltros, CONFIG.DEBOUNCE_MS);
+            $('filtro-sku').addEventListener('input', aplicarComAtraso);
+            $('filtro-titulo').addEventListener('input', aplicarComAtraso);
+            $('filtro-logistica').addEventListener('change', aplicarFiltros);
+            $('filtro-promocao').addEventListener('change', aplicarFiltros);
+
+            document.querySelectorAll('.tab-btn').forEach((btn) => {
+                btn.addEventListener('click', () => mudarAba(btn.dataset.aba));
+            });
+
+            // Mantém a sessão ao recarregar a página (até fechar a aba)
+            if (storageGet('painel_auth') === '1') mostrarPainel();
+            else $('input-senha').focus();
+        });
     </script>
 </body>
 </html>
