@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Gestão Operacional de Anúncios e Promoções</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PapaParse CDN para leitura robusta do CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        verdeEscuro: '#1b4332',
+                        verdeMedio: '#2d6a4f',
+                        verdeClaro: '#52b788',
+                        verdeFundo: '#d8f3dc',
+                        cinzaFundo: '#f8f9fa',
+                        cinzaBorda: '#e5e7eb',
+                        cinzaTexto: '#4b5563'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Transição suave para modais e elementos visuais */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-cinzaFundo text-cinzaTexto font-sans antialiased min-h-screen flex flex-col relative">
+
+    <!-- Modal de Autenticação / Tela de Bloqueio por Senha -->
+    <div id="modal-login" class="fixed inset-0 z-50 bg-verdeEscuro bg-opacity-95 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full border border-cinzaBorda fade-in">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-verdeFundo text-verdeEscuro rounded-full mb-3">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-verdeEscuro">Acesso Restrito</h2>
+                <p class="text-xs text-cinzaTexto mt-1">Informe a senha de gestão para desbloquear o painel.</p>
+            </div>
+
+            <form onsubmit="validarSenha(event)" class="space-y-4">
+                <div>
+                    <label for="senha-acesso" class="block text-xs font-semibold uppercase text-gray-600 mb-1">Senha de Acesso</label>
+                    <input type="password" id="senha-acesso" placeholder="Digite a senha..." required class="w-full px-4 py-3 border border-cinzaBorda rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-verdeClaro transition">
+                </div>
+                <div id="erro-senha" class="hidden bg-red-50 text-red-600 text-xs p-3 rounded-md font-medium text-center">
+                    Senha incorreta! Tente novamente.
+                </div>
+                <button type="submit" class="w-full bg-verdeEscuro hover:bg-verdeMedio text-white font-semibold py-3 rounded-lg text-sm transition shadow-md">
+                    Acessar Painel
+                </button>
+            </form>
+            <div class="mt-6 text-center text-xs text-gray-400">
+                Segurança Interna de Varejo
+            </div>
+        </div>
+    </div>
+
+    <!-- Conteúdo Principal do Painel (Oculto até autenticação) -->
+    <div id="conteudo-painel" class="hidden flex-col min-h-screen">
+        
+        <!-- Header -->
+        <header class="bg-verdeEscuro text-white shadow-md">
+            <div class="max-w-7xl mx-auto px-4 py-5 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-wide flex items-center gap-2">
+                        <svg class="w-7 h-7 text-verdeClaro" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        Painel de Gestão Operacional
+                    </h1>
+                    <p class="text-verdeFundo text-xs mt-0.5">Análise de Anúncios, Estoques, Promoções e Modalidades Logísticas</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span id="status-conexao" class="bg-amber-500 text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-sm">Carregando dados...</span>
+                    <button onclick="carregarDados()" class="bg-verdeClaro hover:bg-opacity-90 text-white text-xs px-3 py-1.5 rounded-md font-medium transition flex items-center gap-1 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Atualizar
+                    </button>
+                    <button onclick="bloquearPainel()" class="bg-gray-700 hover:bg-gray-800 text-white text-xs px-3 py-1.5 rounded-md font-medium transition shadow-sm">
+                        Sair
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Container -->
+        <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full space-y-6">
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-cinzaBorda flex items-center justify-between hover:border-verdeClaro transition">
+                    <div>
+                        <p class="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total de Anúncios</p>
+                        <h3 id="kpi-total" class="text-2xl font-bold text-verdeEscuro mt-1">0</h3>
+                    </div>
+                    <div class="p-3 bg-verdeFundo rounded-xl text-verdeEscuro">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-cinzaBorda flex items-center justify-between hover:border-red-300 transition">
+                    <div>
+                        <p class="text-xs uppercase tracking-wider text-red-600 font-semibold">Sem Saldo (Atenção)</p>
+                        <h3 id="kpi-atencao" class="text-2xl font-bold text-red-600 mt-1">0</h3>
+                    </div>
+                    <div class="p-3 bg-red-100 rounded-xl text-red-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-cinzaBorda flex items-center justify-between hover:border-amber-300 transition">
+                    <div>
+                        <p class="text-xs uppercase tracking-wider text-amber-600 font-semibold">Oportunidades</p>
+                        <h3 id="kpi-oportunidades" class="text-2xl font-bold text-amber-600 mt-1">0</h3>
+                    </div>
+                    <div class="p-3 bg-amber-100 rounded-xl text-amber-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-cinzaBorda flex items-center justify-between hover:border-verdeClaro transition">
+                    <div>
+                        <p class="text-xs uppercase tracking-wider text-verdeClaro font-semibold">Em Promoção</p>
+                        <h3 id="kpi-promocao" class="text-2xl font-bold text-verdeEscuro mt-1">0</h3>
+                    </div>
+                    <div class="p-3 bg-verdeFundo rounded-xl text-verdeClaro">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros Operacionais -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-cinzaBorda">
+                <h2 class="text-lg font-bold text-verdeEscuro mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-verdeClaro" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                    Filtros Operacionais
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label for="filtro-sku" class="block text-xs font-semibold uppercase text-gray-600 mb-1">SKU</label>
+                        <input type="text" id="filtro-sku" onkeyup="aplicarFiltros()" placeholder="Buscar SKU..." class="w-full px-3 py-2 border border-cinzaBorda rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-verdeClaro">
+                    </div>
+                    <div>
+                        <label for="filtro-titulo" class="block text-xs font-semibold uppercase text-gray-600 mb-1">Título do Produto</label>
+                        <input type="text" id="filtro-titulo" onkeyup="aplicarFiltros()" placeholder="Buscar por título..." class="w-full px-3 py-2 border border-cinzaBorda rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-verdeClaro">
+                    </div>
+                    <div>
+                        <label for="filtro-logistica" class="block text-xs font-semibold uppercase text-gray-600 mb-1">Modalidade Logística</label>
+                        <select id="filtro-logistica" onchange="aplicarFiltros()" class="w-full px-3 py-2 border border-cinzaBorda rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-verdeClaro bg-white">
+                            <option value="">Todas</option>
+                            <option value="mercado envios">Mercado Envios</option>
+                            <option value="full">Full / Fulfillment</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filtro-promocao" class="block text-xs font-semibold uppercase text-gray-600 mb-1">Situação da Promoção</label>
+                        <select id="filtro-promocao" onchange="aplicarFiltros()" class="w-full px-3 py-2 border border-cinzaBorda rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-verdeClaro bg-white">
+                            <option value="">Todas</option>
+                            <option value="com">Com Promoção Ativa</option>
+                            <option value="sem">Sem Promoção</option>
+                            <option value="sem_saldo">Promocionado sem Saldo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-4 flex justify-end space-x-2">
+                    <button onclick="limparFiltros()" class="px-4 py-2 border border-cinzaBorda text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-100 transition">Limpar Filtros</button>
+                    <button onclick="aplicarFiltros()" class="px-4 py-2 bg-verdeEscuro text-white text-sm font-medium rounded-lg hover:bg-verdeMedio transition">Aplicar Filtros</button>
+                </div>
+            </div>
+
+            <!-- Abas de Navegação -->
+            <div class="border-b border-cinzaBorda flex space-x-4 overflow-x-auto">
+                <button onclick="mudarAba('atencao')" id="tab-atencao" class="tab-btn py-3 px-3 border-b-2 border-verdeEscuro text-verdeEscuro font-semibold text-sm whitespace-nowrap">🚨 Pontos de Atenção (Sem Saldo)</button>
+                <button onclick="mudarAba('oportunidades')" id="tab-oportunidades" class="tab-btn py-3 px-3 border-b-2 border-transparent text-gray-500 hover:text-verdeEscuro font-medium text-sm whitespace-nowrap">💡 Oportunidades Comerciais</button>
+                <button onclick="mudarAba('promocoes')" id="tab-promocoes" class="tab-btn py-3 px-3 border-b-2 border-transparent text-gray-500 hover:text-verdeEscuro font-medium text-sm whitespace-nowrap">🏷️ Produtos em Promoção</button>
+                <button onclick="mudarAba('estoque')" id="tab-estoque" class="tab-btn py-3 px-3 border-b-2 border-transparent text-gray-500 hover:text-verdeEscuro font-medium text-sm whitespace-nowrap">📦 Estoque (Envios vs Full)</button>
+                <button onclick="mudarAba('todos')" id="tab-todos" class="tab-btn py-3 px-3 border-b-2 border-transparent text-gray-500 hover:text-verdeEscuro font-medium text-sm whitespace-nowrap">📋 Todos os Anúncios</button>
+            </div>
+
+            <!-- Seções de Conteúdo das Abas -->
+            <div class="bg-white rounded-xl shadow-sm border border-cinzaBorda overflow-hidden">
+                
+                <!-- Pontos de Atenção -->
+                <div id="secao-atencao" class="secao-conteudo p-5">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-verdeEscuro">Anúncios Promocionados sem Saldo Disponível</h3>
+                        <p class="text-xs text-gray-500">Itens em campanhas promocionais que necessitam de atenção imediata devido à ausência de orçamento/saldo.</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse" id="tabela-atencao">
+                            <thead>
+                                <tr class="bg-cinzaFundo text-xs uppercase text-gray-600 border-b border-cinzaBorda">
+                                    <th class="p-3">SKU</th>
+                                    <th class="p-3">Título</th>
+                                    <th class="p-3">Logística</th>
+                                    <th class="p-3">Situação Promo</th>
+                                    <th class="p-3">Estoque</th>
+                                    <th class="p-3">Status Saldo</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-cinzaBorda text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Oportunidades Comerciais -->
+                <div id="secao-oportunidades" class="secao-conteudo p-5 hidden">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-verdeEscuro">Oportunidades Comerciais (Com Estoque e Sem Promoção)</h3>
+                        <p class="text-xs text-gray-500">Produtos com volume de estoque disponível que podem ser ativados em campanhas promocionais para acelerar vendas.</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse" id="tabela-oportunidades">
+                            <thead>
+                                <tr class="bg-cinzaFundo text-xs uppercase text-gray-600 border-b border-cinzaBorda">
+                                    <th class="p-3">SKU</th>
+                                    <th class="p-3">Título</th>
+                                    <th class="p-3">Logística</th>
+                                    <th class="p-3">Estoque</th>
+                                    <th class="p-3">Preço Atual</th>
+                                    <th class="p-3">Situação Promo</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-cinzaBorda text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Produtos em Promoção -->
+                <div id="secao-promocoes" class="secao-conteudo p-5 hidden">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-verdeEscuro">Comparativo de Preços e Descontos</h3>
+                        <p class="text-xs text-gray-500">Análise de variação de preço original versus promocional com percentual de desconto calculado.</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse" id="tabela-promocoes">
+                            <thead>
+                                <tr class="bg-cinzaFundo text-xs uppercase text-gray-600 border-b border-cinzaBorda">
+                                    <th class="p-3">SKU</th>
+                                    <th class="p-3">Título</th>
+                                    <th class="p-3">Preço Original</th>
+                                    <th class="p-3">Preço Promo</th>
+                                    <th class="p-3">% Desconto</th>
+                                    <th class="p-3">Situação Promo</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-cinzaBorda text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Estoque por Modalidade -->
+                <div id="secao-estoque" class="secao-conteudo p-5 hidden">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-verdeEscuro">Distribuição de Estoque Disponível</h3>
+                        <p class="text-xs text-gray-500">Visão consolidada do volume de itens disponíveis por canal logístico.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="bg-cinzaFundo p-5 rounded-xl border border-cinzaBorda">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="font-bold text-verdeEscuro">📦 Mercado Envios</h4>
+                                <span class="bg-verdeFundo text-verdeEscuro text-xs px-2.5 py-1 rounded-full font-semibold">Logística Padrão</span>
+                            </div>
+                            <p class="text-3xl font-bold text-verdeMedio" id="total-estoque-envios">0 un.</p>
+                            <p class="text-xs text-gray-500 mt-1" id="qtd-produtos-envios">0 anúncios cadastrados</p>
+                        </div>
+                        <div class="bg-cinzaFundo p-5 rounded-xl border border-cinzaBorda">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="font-bold text-verdeEscuro">🚀 Full (Fulfillment)</h4>
+                                <span class="bg-verdeEscuro text-white text-xs px-2.5 py-1 rounded-full font-semibold">Envio Rápido</span>
+                            </div>
+                            <p class="text-3xl font-bold text-verdeEscuro" id="total-estoque-full">0 un.</p>
+                            <p class="text-xs text-gray-500 mt-1" id="qtd-produtos-full">0 anúncios cadastrados</p>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse" id="tabela-estoque">
+                            <thead>
+                                <tr class="bg-cinzaFundo text-xs uppercase text-gray-600 border-b border-cinzaBorda">
+                                    <th class="p-3">SKU</th>
+                                    <th class="p-3">Título</th>
+                                    <th class="p-3">Modalidade Logística</th>
+                                    <th class="p-3">Estoque Disponível</th>
+                                    <th class="p-3">Preço Atual</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-cinzaBorda text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Todos os Anúncios -->
+                <div id="secao-todos" class="secao-conteudo p-5 hidden">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-verdeEscuro">Catálogo Geral de Anúncios</h3>
+                        <p class="text-xs text-gray-500">Visualização integral de todos os registros sincronizados da planilha.</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse" id="tabela-todos">
+                            <thead>
+                                <tr class="bg-cinzaFundo text-xs uppercase text-gray-600 border-b border-cinzaBorda">
+                                    <th class="p-3">SKU</th>
+                                    <th class="p-3">Título</th>
+                                    <th class="p-3">Logística</th>
+                                    <th class="p-3">Estoque</th>
+                                    <th class="p-3">Preço Original</th>
+                                    <th class="p-3">Preço Promo</th>
+                                    <th class="p-3">Situação Promo</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-cinzaBorda text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-cinzaBorda py-4 text-center text-xs text-gray-500 mt-auto">
+            Painel de Gestão Operacional de Varejo &bull; Sincronização em Tempo Real com Google Sheets
+        </footer>
+    </div>
+
+    <!-- JavaScript Principal -->
+    <script>
+        const SENHA_CORRETA = "varejo";
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ0nzI9DDtfpKwNkTeaq9MzkkWJN8OqmILsz86aIPMkXMjEe6IwBuKhVzs_i6tCZt3Y7LsSx-6WzuQe/pub?gid=0&single=true&output=csv";
+        
+        let dadosGlobais = [];
+
+        // Lógica de Autenticação por Senha
+        function validarSenha(event) {
+            event.preventDefault();
+            const inputSenha = document.getElementById('senha-acesso').value;
+            const erroEl = document.getElementById('erro-senha');
+
+            if (inputSenha === SENHA_CORRETA) {
+                document.getElementById('modal-login').classList.add('hidden');
+                const conteudo = document.getElementById('conteudo-painel');
+                conteudo.classList.remove('hidden');
+                conteudo.classList.add('flex');
+                carregarDados();
+            } else {
+                erroEl.classList.remove('hidden');
+            }
+        }
+
+        function bloquearPainel() {
+            document.getElementById('senha-acesso').value = '';
+            document.getElementById('erro-senha').classList.add('hidden');
+            document.getElementById('conteudo-painel').classList.add('hidden');
+            document.getElementById('modal-login').classList.remove('hidden');
+        }
+
+        // Leitura do CSV e Atualização da Interface
+        function carregarDados() {
+            const statusEl = document.getElementById('status-conexao');
+            statusEl.textContent = "Sincronizando...";
+            statusEl.className = "bg-amber-500 text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-sm";
+
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    dadosGlobais = results.data;
+                    statusEl.textContent = "Conectado";
+                    statusEl.className = "bg-verdeClaro text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-sm";
+                    processarDados(dadosGlobais);
+                },
+                error: function(err) {
+                    console.error("Erro ao carregar CSV:", err);
+                    statusEl.textContent = "Erro na Conexão";
+                    statusEl.className = "bg-red-500 text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-sm";
+                }
+            });
+        }
+
+        function encontrarChave(objeto, possiveisNomes) {
+            if (!objeto) return null;
+            const chaves = Object.keys(objeto);
+            for (let nome of possiveisNomes) {
+                const encontrada = chaves.find(k => k.toLowerCase().trim() === nome.toLowerCase());
+                if (encontrada) return encontrada;
+            }
+            for (let nome of possiveisNomes) {
+                const encontrada = chaves.find(k => k.toLowerCase().includes(nome.toLowerCase()));
+                if (encontrada) return encontrada;
+            }
+            return null;
+        }
+
+        function processarDados(dados) {
+            if (!dados || dados.length === 0) return;
+
+            const amostra = dados[0];
+            const kSku = encontrarChave(amostra, ['sku', 'codigo', 'código', 'id']);
+            const kTitulo = encontrarChave(amostra, ['titulo', 'título', 'anuncio', 'anúncio', 'produto', 'nome']);
+            const kEstoque = encontrarChave(amostra, ['estoque', 'quantidade', 'qtd', 'saldo_estoque']);
+            const kLogistica = me => encontrarChave(amostra, ['modalidade', 'logistica', 'logística', 'envio', 'fulfillment', 'tipo']);
+            const kPromocao = encontrarChave(amostra, ['situacao', 'situação', 'promocao', 'promoção', 'status', 'campanha']);
+            const kSaldo = encontrarChave(amostra, ['saldo', 'orcamento', 'orçamento', 'budget']);
+            const kPrecoOrig = encontrarChave(amostra, ['preco_original', 'preco original', 'preço original', 'preco_de', 'preco', 'preço']);
+            const kPrecoPromo = encontrarChave(amostra, ['preco_promocional', 'preco promocional', 'preço promocional', 'preco_por']);
+            const kLogisticaKey = kLogistica();
+
+            window.dadosProcessados = dados.map((item, idx) => {
+                const sku = kSku ? item[kSku] : `SKU-${idx + 1}`;
+                const titulo = kTitulo ? item[kTitulo] : `Produto ${idx + 1}`;
+                const estoque = kEstoque ? parseFloat(String(item[kEstoque]).replace(/\./g, '').replace(',', '.')) || 0 : 0;
+                const logistica = kLogisticaKey ? String(item[kLogisticaKey]).toLowerCase().trim() : 'mercado envios';
+                const promocao = kPromocao ? String(item[kPromocao]).toLowerCase().trim() : '';
+                const saldo = kSaldo ? parseFloat(String(item[kSaldo]).replace(/\./g, '').replace(',', '.')) || 0 : 1;
+                const precoOrig = kPrecoOrig ? parseFloat(String(item[kPrecoOrig]).replace('R$', '').replace(/\./g, '').replace(',', '.')) || 0 : 0;
+                const precoPromo = kPrecoPromo ? parseFloat(String(item[kPrecoPromo]).replace('R$', '').replace(/\./g, '').replace(',', '.')) || 0 : 0;
+
+                const temPromoAtiva = promocao.includes('ativa') || promocao.includes('sim') || promocao.includes('em andamento') || promocao.includes('participando') || (precoPromo > 0 && precoPromo < precoOrig);
+                const semSaldo = (promocao.includes('promocionado') || temPromoAtiva || promocao.includes('sem saldo')) && (kSaldo ? saldo <= 0 : promocao.includes('sem saldo'));
+                const oportunidade = estoque > 0 && !temPromoAtiva;
+
+                return {
+                    sku,
+                    titulo,
+                    estoque,
+                    logistica,
+                    promocao: kPromocao ? item[kPromocao] : (temPromoAtiva ? 'Ativa' : 'Sem Promoção'),
+                    temPromoAtiva,
+                    semSaldo,
+                    oportunidade,
+                    precoOrig,
+                    precoPromo,
+                    saldo
+                };
+            });
+
+            atualizarDashboard(window.dadosProcessados);
+        }
+
+        function atualizarDashboard(lista) {
+            document.getElementById('kpi-total').textContent = lista.length;
+            document.getElementById('kpi-atencao').textContent = lista.filter(i => i.semSaldo).length;
+            document.getElementById('kpi-oportunidades').textContent = lista.filter(i => i.oportunidade).length;
+            document.getElementById('kpi-promocao').textContent = lista.filter(i => i.temPromoAtiva).length;
+
+            preencherTabelaAtencao(lista.filter(i => i.semSaldo));
+            preencherTabelaOportunidades(lista.filter(i => i.oportunidade));
+            preencherTabelaPromocoes(lista.filter(i => i.temPromoAtiva || i.precoPromo > 0));
+            preencherTabelaEstoque(lista);
+            preencherTabelaTodos(lista);
+        }
+
+        function preencherTabelaAtencao(lista) {
+            const tbody = document.querySelector('#tabela-atencao tbody');
+            tbody.innerHTML = lista.length === 0 ? `<tr><td colspan="6" class="p-4 text-center text-gray-400">Nenhum ponto de atenção encontrado.</td></tr>` : '';
+            lista.forEach(i => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-cinzaFundo">
+                        <td class="p-3 font-medium text-verdeEscuro">${i.sku}</td>
+                        <td class="p-3">${i.titulo}</td>
+                        <td class="p-3 capitalize">${i.logistica}</td>
+                        <td class="p-3"><span class="bg-red-100 text-red-600 px-2 py-1 rounded-md text-xs font-semibold">${i.promocao}</span></td>
+                        <td class="p-3 font-semibold">${i.estoque} un.</td>
+                        <td class="p-3 text-red-600 font-bold">Sem Saldo</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function preencherTabelaOportunidades(lista) {
+            const tbody = document.querySelector('#tabela-oportunidades tbody');
+            tbody.innerHTML = lista.length === 0 ? `<tr><td colspan="6" class="p-4 text-center text-gray-400">Nenhuma oportunidade comercial encontrada.</td></tr>` : '';
+            lista.forEach(i => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-cinzaFundo">
+                        <td class="p-3 font-medium text-verdeEscuro">${i.sku}</td>
+                        <td class="p-3">${i.titulo}</td>
+                        <td class="p-3 capitalize">${i.logistica}</td>
+                        <td class="p-3 font-semibold text-verdeClaro">${i.estoque} un.</td>
+                        <td class="p-3 font-medium">R$ ${i.precoOrig.toFixed(2)}</td>
+                        <td class="p-3"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded-md text-xs">Sem Promoção</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function preencherTabelaPromocoes(lista) {
+            const tbody = document.querySelector('#tabela-promocoes tbody');
+            tbody.innerHTML = lista.length === 0 ? `<tr><td colspan="6" class="p-4 text-center text-gray-400">Nenhum produto em promoção registrado.</td></tr>` : '';
+            lista.forEach(i => {
+                let desconto = i.precoOrig > 0 && i.precoPromo > 0 ? ((1 - (i.precoPromo / i.precoOrig)) * 100).toFixed(1) : 0;
+                if (desconto < 0) desconto = 0;
+                tbody.innerHTML += `
+                    <tr class="hover:bg-cinzaFundo">
+                        <td class="p-3 font-medium text-verdeEscuro">${i.sku}</td>
+                        <td class="p-3">${i.titulo}</td>
+                        <td class="p-3 line-through text-gray-400">R$ ${i.precoOrig.toFixed(2)}</td>
+                        <td class="p-3 font-bold text-verdeEscuro">R$ ${(i.precoPromo > 0 ? i.precoPromo : i.precoOrig).toFixed(2)}</td>
+                        <td class="p-3"><span class="bg-verdeFundo text-verdeEscuro px-2 py-1 rounded-md text-xs font-bold">-${desconto}%</span></td>
+                        <td class="p-3">${i.promocao}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function preencherTabelaEstoque(lista) {
+            const envios = lista.filter(i => i.logistica.includes('envios') || i.logistica.includes('padrao') || !i.logistica.includes('full'));
+            const full = lista.filter(i => i.logistica.includes('full') || i.logistica.includes('fulfillment'));
+
+            const somaEnvios = envios.reduce((acc, cur) => acc + cur.estoque, 0);
+            const somaFull = full.reduce((acc, cur) => acc + cur.estoque, 0);
+
+            document.getElementById('total-estoque-envios').textContent = `${somaEnvios.toLocaleString()} un.`;
+            document.getElementById('qtd-produtos-envios').textContent = `${envios.length} anúncios cadastrados`;
+
+            document.getElementById('total-estoque-full').textContent = `${somaFull.toLocaleString()} un.`;
+            document.getElementById('qtd-produtos-full').textContent = `${full.length} anúncios cadastrados`;
+
+            const tbody = document.querySelector('#tabela-estoque tbody');
+            tbody.innerHTML = '';
+            lista.forEach(i => {
+                const isFull = i.logistica.includes('full') || i.logistica.includes('fulfillment');
+                tbody.innerHTML += `
+                    <tr class="hover:bg-cinzaFundo">
+                        <td class="p-3 font-medium text-verdeEscuro">${i.sku}</td>
+                        <td class="p-3">${i.titulo}</td>
+                        <td class="p-3 capitalize">
+                            <span class="px-2.5 py-1 rounded-md text-xs font-medium ${isFull ? 'bg-verdeEscuro text-white' : 'bg-verdeFundo text-verdeEscuro'}">
+                                ${i.logistica}
+                            </span>
+                        </td>
+                        <td class="p-3 font-semibold">${i.estoque} un.</td>
+                        <td class="p-3 font-medium">R$ ${(i.precoPromo > 0 ? i.precoPromo : i.precoOrig).toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function preencherTabelaTodos(lista) {
+            const tbody = document.querySelector('#tabela-todos tbody');
+            tbody.innerHTML = '';
+            lista.forEach(i => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-cinzaFundo">
+                        <td class="p-3 font-medium text-verdeEscuro">${i.sku}</td>
+                        <td class="p-3">${i.titulo}</td>
+                        <td class="p-3 capitalize">${i.logistica}</td>
+                        <td class="p-3 font-semibold">${i.estoque} un.</td>
+                        <td class="p-3">R$ ${i.precoOrig.toFixed(2)}</td>
+                        <td class="p-3 font-semibold text-verdeEscuro">R$ ${i.precoPromo.toFixed(2)}</td>
+                        <td class="p-3">${i.promocao}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function aplicarFiltros() {
+            if (!window.dadosProcessados) return;
+
+            const skuFiltro = document.getElementById('filtro-sku').value.toLowerCase();
+            const tituloFiltro = document.getElementById('filtro-titulo').value.toLowerCase();
+            const logisticaFiltro = document.getElementById('filtro-logistica').value.toLowerCase();
+            const promocaoFiltro = document.getElementById('filtro-promocao').value.toLowerCase();
+
+            const filtrados = window.dadosProcessados.filter(i => {
+                const matchSku = i.sku.toLowerCase().includes(skuFiltro);
+                const matchTitulo = i.titulo.toLowerCase().includes(tituloFiltro);
+                const matchLogistica = !logisticaFiltro || i.logistica.includes(logisticaFiltro);
+                
+                let matchPromo = true;
+                if (promocaoFiltro === 'com') matchPromo = i.temPromoAtiva;
+                else if (promocaoFiltro === 'sem') matchPromo = !i.temPromoAtiva;
+                else if (promocaoFiltro === 'sem_saldo') matchPromo = i.semSaldo;
+
+                return matchSku && matchTitulo && matchLogistica && matchPromo;
+            });
+
+            atualizarDashboard(filtrados);
+        }
+
+        function limparFiltros() {
+            document.getElementById('filtro-sku').value = '';
+            document.getElementById('filtro-titulo').value = '';
+            document.getElementById('filtro-logistica').value = '';
+            document.getElementById('filtro-promocao').value = '';
+            atualizarDashboard(window.dadosProcessados);
+        }
+
+        function mudarAba(abaId) {
+            document.querySelectorAll('.secao-conteudo').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('border-verdeEscuro', 'text-verdeEscuro', 'font-semibold');
+                el.classList.add('border-transparent', 'text-gray-500', 'font-medium');
+            });
+
+            document.getElementById(`secao-${abaId}`).classList.remove('hidden');
+            const btnAtivo = document.getElementById(`tab-${abaId}`);
+            btnAtivo.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+            btnAtivo.classList.add('border-verdeEscuro', 'text-verdeEscuro', 'font-semibold');
+        }
+    </script>
+</body>
